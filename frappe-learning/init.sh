@@ -75,7 +75,7 @@ sed -i '/watch/d' ./Procfile
 
 # Get the LMS app from your GitHub fork instead of the default upstream repo
 # You can change the branch (e.g. --branch main) if needed
-bench get-app https://github.com/palash62/official-lms --branch develop
+bench get-app https://github.com/palash62/official-lms --branch palash_frappe
 
 bench new-site lms.localhost \
   --force \

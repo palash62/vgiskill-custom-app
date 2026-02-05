@@ -1,0 +1,25 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs and temp
+*.log
+tmp/
+temp/
+.cache/
+
+# Docker (optional: uncomment if you track compose overrides locally)
+# docker-compose.override.yml

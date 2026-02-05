@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: vgiskill_custom_app
+Version: 0.0.1
+Summary: Custom extensions and APIs for Frappe LMS
+Requires-Python: >=3.10
+Requires-Dist: frappe

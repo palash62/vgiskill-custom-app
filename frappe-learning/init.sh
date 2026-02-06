@@ -58,6 +58,13 @@ if [ -d "${BENCH_DIR}/apps/frappe" ]; then
     echo "Bench already exists, updating apps from Git and starting bench"
     cd "${BENCH_DIR}"
 
+    # Ensure payments app is in bench (get-app is no-op if already present)
+    if [ ! -d "${BENCH_DIR}/apps/payments" ]; then
+      echo "Adding Payments app (https://github.com/frappe/payments)"
+      bench get-app https://github.com/frappe/payments || true
+    fi
+    (cd "${BENCH_DIR}" && bench --site lms.localhost install-app payments) || true
+
     # Update LMS app from your GitHub fork clone mounted at apps/lms
     if [ -d "${BENCH_DIR}/apps/lms/.git" ]; then
       echo "Pulling latest LMS code from origin/develop"
@@ -98,6 +105,9 @@ sed -i '/watch/d' ./Procfile
 # You can change the branch (e.g. --branch main) if needed
 bench get-app https://github.com/palash62/official-lms --branch palash_frappe
 
+# Payments app: https://github.com/frappe/payments
+bench get-app https://github.com/frappe/payments
+
 bench new-site lms.localhost \
   --force \
   --mariadb-root-password 123 \
@@ -105,6 +115,7 @@ bench new-site lms.localhost \
   --no-mariadb-socket
 
 bench --site lms.localhost install-app lms
+bench --site lms.localhost install-app payments
 
 # Install any custom apps that have been mounted into the bench and listed via CUSTOM_APPS
 install_custom_apps lms.localhost

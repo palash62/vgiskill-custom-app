@@ -4,8 +4,9 @@ set -e
 
 BENCH_DIR="/home/frappe/frappe-bench"
 
-# Helper: install/link any custom apps listed in CUSTOM_APPS.
+# Helper: install/link custom apps from CUSTOM_APPS and install them on the site (so APIs work).
 install_custom_apps() {
+  local site="${1:-lms.localhost}"
   if [ -z "${CUSTOM_APPS}" ]; then
     return
   fi
@@ -25,7 +26,27 @@ install_custom_apps() {
         ln -s "${CUSTOM_APP_SRC}" "${APP_TARGET}"
       fi
       echo "Installing Python package for custom app: ${app_trimmed}"
-      uv pip install --quiet --upgrade -e "${APP_TARGET}" --python "${BENCH_DIR}/env/bin/python" || echo "Failed to install Python package for app: ${app_trimmed}"
+      if ! uv pip install --quiet --upgrade -e "${APP_TARGET}" --python "${BENCH_DIR}/env/bin/python" 2>/dev/null; then
+        echo "uv install failed, trying pip for custom app: ${app_trimmed}"
+        "${BENCH_DIR}/env/bin/pip" install --quiet --upgrade -e "${APP_TARGET}" || echo "Failed to install Python package for app: ${app_trimmed}"
+      fi
+      # Add app to sites/apps.txt so bench install-app can run (Frappe requires this)
+      APPS_TXT="${BENCH_DIR}/sites/apps.txt"
+      if [ -f "${APPS_TXT}" ]; then
+        # Fix corrupted line if app was appended without newline (e.g. "lmsvgiskill_custom_app")
+        if grep -q "lmsvgiskill_custom_app" "${APPS_TXT}"; then
+          sed -i 's/lmsvgiskill_custom_app/lms\nvgiskill_custom_app/' "${APPS_TXT}" || true
+          echo "Fixed apps.txt (split lms and vgiskill_custom_app)"
+        fi
+        if ! grep -q "^${app_trimmed}$" "${APPS_TXT}"; then
+          # Ensure file ends with newline so app is on its own line
+          [ -s "${APPS_TXT}" ] && [ "$(tail -c1 "${APPS_TXT}" | wc -l)" -eq 0 ] && echo >> "${APPS_TXT}"
+          echo "${app_trimmed}" >> "${APPS_TXT}"
+          echo "Added ${app_trimmed} to apps.txt"
+        fi
+      fi
+      echo "Installing custom app on site: ${app_trimmed}"
+      (cd "${BENCH_DIR}" && bench --site "${site}" install-app "${app_trimmed}") || echo "Warning: install-app ${app_trimmed} failed (may already be installed)"
     else
       echo "Custom app source directory ${CUSTOM_APP_SRC} not found, skipping"
     fi
@@ -48,7 +69,7 @@ if [ -d "${BENCH_DIR}/apps/frappe" ]; then
     # Rebuild assets so frontend changes are reflected
     bench build || echo "Warning: bench build failed"
 
-    install_custom_apps
+    install_custom_apps lms.localhost
     bench start
     exit 0
 fi
@@ -86,7 +107,7 @@ bench new-site lms.localhost \
 bench --site lms.localhost install-app lms
 
 # Install any custom apps that have been mounted into the bench and listed via CUSTOM_APPS
-install_custom_apps
+install_custom_apps lms.localhost
 
 bench --site lms.localhost set-config developer_mode 1
 bench --site lms.localhost clear-cache

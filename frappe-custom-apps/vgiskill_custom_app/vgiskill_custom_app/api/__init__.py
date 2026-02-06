@@ -5,7 +5,7 @@ import frappe
 def ping():
     """Simple test API to verify custom app is wired correctly."""
     return {
-        "status": "ok1",
+        "status": "ok",
         "app": "vgiskill_custom_app",
         "message": "Custom API is working",
     }

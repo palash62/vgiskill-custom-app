@@ -6,5 +6,3 @@ app_email = "admin@example.com"
 app_license = "MIT"
 
 # You can start adding your hooks here as needed.
-
-

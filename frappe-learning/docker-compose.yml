@@ -21,15 +21,16 @@ services:
     command: bash /workspace/init.sh
     environment:
       - SHELL=/bin/bash
-      # Comma-separated list of custom Frappe apps that live in the host-mounted bench
-      # Example: CUSTOM_APPS=lms_custom,another_app
+      # Custom apps: edit on host in frappe-custom-apps/ (no need to work inside container)
       - CUSTOM_APPS=vgiskill_custom_app
+      # Host path to frappe-custom-apps; set absolute path if you moved folders
+      - CUSTOM_APPS_PATH=${CUSTOM_APPS_PATH:-../frappe-custom-apps}
     working_dir: /home/frappe
     volumes:
       # Mount the project workspace (contains init.sh)
       - .:/workspace
-      # Mount host custom apps so their code lives outside the container
-      - /home/ubuntu/frappe-custom-apps:/home/frappe/custom-apps
+      # Mount custom apps: default sibling ../frappe-custom-apps, or set CUSTOM_APPS_PATH (e.g. /home/ubuntu/backup-vgiskill-web-app/frappe-custom-apps)
+      - ${CUSTOM_APPS_PATH:-../frappe-custom-apps}:/home/frappe/custom-apps
     ports:
       - 8000:8000
       - 9000:9000

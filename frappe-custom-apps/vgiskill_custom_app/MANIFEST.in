@@ -1,0 +1,1 @@
+recursive-include vgiskill_custom_app *.py

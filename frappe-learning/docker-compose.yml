@@ -21,6 +21,7 @@ services:
     command: bash /workspace/init.sh
     environment:
       - SHELL=/bin/bash
+      - NODE_OPTIONS=--max_old_space_size=2048
       # Custom apps: edit on host in frappe-custom-apps/ (no need to work inside container)
       - CUSTOM_APPS=vgiskill_custom_app
       # Host path to frappe-custom-apps; set absolute path if you moved folders

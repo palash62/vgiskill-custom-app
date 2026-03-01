@@ -1,0 +1,69 @@
+nodeSelector:
+  cloud.google.com/gke-nodepool: gke-prod-asia-south1-np-app-prod
+
+ingress:
+  # Disabled: lab.vgiskill.ai is routed via frappe-lms ingress (IP 34.111.46.219)
+  enabled: false
+  className: "gce"
+
+  # HTTP only for now - add managed-certificates when ready for HTTPS
+  annotations:
+    kubernetes.io/ingress.allow-http: "true"
+
+  host: "lab.vgiskill.ai"
+
+  tls:
+    enabled: false
+    secretName: ""
+
+mariadb:
+  enabled: false
+  image: mariadb:10.8
+  persistence:
+    enabled: false
+
+frappe:
+  image: asia-south1-docker.pkg.dev/variphi/frappe-lms/frappe-lms:latest   # ✅ CRITICAL FIX 🔥
+
+  service:
+    type: NodePort   # Required for GCE Ingress backend (frappe-lms routes lab.vgiskill.ai here)
+    port: 80
+    targetPort: 8000
+
+  siteName: lms.local
+  siteUrl: "https://lab.vgiskill.ai"
+  forceHttps: 1
+
+  siteInstallApps: payments,lms,vgiskill_custom_app
+  # REQUIRED: set via values-secret.yaml (copy values-secret.yaml.example or run scripts/generate-values-secret-from-env.py)
+  siteAdminPassword: ""
+
+  env:
+    CUSTOM_APPS: vgiskill_custom_app
+    CUSTOM_APPS_PATH: /home/frappe/custom-apps
+    NODE_OPTIONS: --max_old_space_size=2048
+
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "500m"
+    limits:
+      memory: "6Gi"
+      cpu: "2"
+
+  # DB connection: all details (host, port, name, user, password) MUST come from values-secret.yaml. Deploy with: -f values.yaml -f values-secret.yaml
+  db:
+    external: true
+    host: ""
+    port: 3306
+    name: ""
+    user: ""
+    password: ""
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: standard-rwo  # set to a valid StorageClass in your cluster
+
+redis:
+  image: redis:6

@@ -9,7 +9,7 @@ services:
       - --skip-character-set-client-handshake
       - --skip-innodb-read-only-compressed # Temporary fix for MariaDB 10.6
     environment:
-      MYSQL_ROOT_PASSWORD: 123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     volumes:
       - mariadb-data:/var/lib/mysql
 
@@ -19,13 +19,13 @@ services:
   frappe:
     image: frappe/bench:latest
     command: bash /workspace/init.sh
+    env_file: .env
     environment:
       - SHELL=/bin/bash
       - NODE_OPTIONS=--max_old_space_size=2048
-      # Custom apps: edit on host in frappe-custom-apps/ (no need to work inside container)
       - CUSTOM_APPS=vgiskill_custom_app
-      # Host path to frappe-custom-apps; set absolute path if you moved folders
       - CUSTOM_APPS_PATH=${CUSTOM_APPS_PATH:-../frappe-custom-apps}
+      - DB_PASSWORD=${DB_PASSWORD}
     working_dir: /home/frappe
     volumes:
       # Mount the project workspace (contains init.sh)
@@ -35,6 +35,5 @@ services:
     ports:
       - 8000:8000
       - 9000:9000
-
 volumes:
   mariadb-data:

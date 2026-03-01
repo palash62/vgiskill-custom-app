@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vgiskill.fullname" . }}-frappe
+  labels:
+    {{- include "vgiskill.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "vgiskill.fullname" . }}-frappe
+  template:
+    metadata:
+      labels:
+        app: {{ include "vgiskill.fullname" . }}-frappe
+        {{- include "vgiskill.labels" . | nindent 8 }}
+    spec:
+      initContainers:
+        - name: frappe-permissions
+          image: {{ .Values.frappe.image }}
+          command: ["sh", "-c", "chown -R 1000:1000 /home/frappe/frappe-bench || true"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: frappe-data
+              mountPath: /home/frappe/frappe-bench
+      containers:
+        - name: frappe
+          image: {{ .Values.frappe.image }}
+          imagePullPolicy: {{ .Values.frappe.imagePullPolicy }}
+          env:
+            - name: SHELL
+              value: /bin/bash
+            - name: CUSTOM_APPS
+              value: {{ .Values.frappe.env.CUSTOM_APPS | quote }}
+            - name: CUSTOM_APPS_PATH
+              value: {{ .Values.frappe.env.CUSTOM_APPS_PATH | quote }}
+            - name: NODE_OPTIONS
+              value: {{ .Values.frappe.env.NODE_OPTIONS | quote }}
+            - name: DB_HOST
+              {{- if .Values.frappe.db.external }}
+              value: {{ .Values.frappe.db.host | quote }}
+              {{- else }}
+              value: {{ include "vgiskill.fullname" . }}-mariadb
+              {{- end }}
+            - name: DB_PORT
+              value: {{ .Values.frappe.db.port | default 3306 | quote }}
+            - name: DB_NAME
+              value: {{ .Values.frappe.db.name | quote }}
+            - name: DB_USER
+              value: {{ .Values.frappe.db.user | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.frappe.db.password | quote }}
+            - name: SITE_HOST
+              value: {{ .Values.ingress.host | default "lms.localhost" | quote }}
+            - name: REDIS_CACHE
+              value: redis://{{ include "vgiskill.fullname" . }}-redis:6379
+            - name: REDIS_QUEUE
+              value: redis://{{ include "vgiskill.fullname" . }}-redis:6379
+            - name: REDIS_SOCKETIO
+              value: redis://{{ include "vgiskill.fullname" . }}-redis:6379
+          ports:
+            - containerPort: 8000
+            - containerPort: 9000
+          resources:
+            {{- toYaml .Values.frappe.resources | nindent 12 }}
+          volumeMounts:
+            - name: frappe-data
+              mountPath: /home/frappe/frappe-bench
+      volumes:
+        - name: frappe-data
+          persistentVolumeClaim:
+            claimName: {{ include "vgiskill.fullname" . }}-frappe

@@ -1,15 +1,158 @@
 import frappe
+from frappe.utils import today
+from frappe import _
 
+# -------------------------------------------------------------------------
+# COUPON VALIDATION API
+# -------------------------------------------------------------------------
 
-@frappe.whitelist(allow_guest=True)
-def ping():
-    """Simple test API to verify custom app is wired correctly."""
+@frappe.whitelist()
+def validate_coupon(coupon_code, amount=None):
+    """
+    Validate LMS Coupon
+    
+    Args:
+        coupon_code (str): Coupon code entered by user
+        amount (float, optional): Cart amount
+    
+    Returns:
+        dict: Coupon validation result
+    """
+
+    # ✅ सुरक्षा check
+    if frappe.session.user == "Guest":
+        frappe.throw(_("Please login to apply coupon."))
+
+    # ✅ Fetch Coupon (Schema Correct)
+    coupon = frappe.db.get_value(
+        "LMS Coupon",
+        {"code": coupon_code, "enabled": 1},
+        [
+            "name",
+            "expires_on",
+            "discount_type",
+            "percentage_discount",
+            "fixed_amount_discount",
+            "usage_limit",
+            "redemption_count"
+        ],
+        as_dict=True
+    )
+
+    if not coupon:
+        return {
+            "valid": False,
+            "message": "Invalid Coupon"
+        }
+
+    # ✅ Expiry Check
+    if coupon.expires_on and str(today()) > str(coupon.expires_on):
+        return {
+            "valid": False,
+            "message": "Coupon Expired"
+        }
+
+    # ✅ Usage Limit Check
+    if coupon.usage_limit and coupon.redemption_count >= coupon.usage_limit:
+        return {
+            "valid": False,
+            "message": "Coupon Limit Reached"
+        }
+
+    # ✅ Discount Logic
+    if coupon.discount_type == "Percentage":
+        discount_value = coupon.percentage_discount
+    else:
+        discount_value = coupon.fixed_amount_discount
+
     return {
-        "status": "ok1",
-        "app": "vgiskill_custom_app",
-        "message": "Custom API is working",
+        "valid": True,
+        "discount_type": coupon.discount_type,
+        "discount_value": discount_value
+    }
+	
+# -------------------------------------------------------------------------
+# OPTIONAL: FINAL PRICE CALCULATION API ⭐⭐⭐
+# -------------------------------------------------------------------------
+
+@frappe.whitelist()
+def calculate_discounted_price(amount, coupon_code=None):
+    """
+    Calculate final price after coupon
+    
+    Args:
+        amount (float): Original amount
+        coupon_code (str, optional): Coupon code
+    
+    Returns:
+        dict: Pricing breakdown
+    """
+
+    if frappe.session.user == "Guest":
+        frappe.throw(_("Login required."))
+
+    original_amount = float(amount)
+    discount_amount = 0
+
+    if coupon_code:
+        coupon_result = validate_coupon(coupon_code, original_amount)
+
+        if not coupon_result.get("valid"):
+            return coupon_result
+
+        if coupon_result["discount_type"] == "Percentage":
+            discount_amount = original_amount * coupon_result["discount_value"] / 100
+        else:
+            discount_amount = coupon_result["discount_value"]
+
+    final_amount = max(original_amount - discount_amount, 0)
+
+    return {
+        "valid": True,
+        "original_amount": original_amount,
+        "discount_amount": discount_amount,
+        "final_amount": final_amount
     }
 
+
+# -------------------------------------------------------------------------
+# OPTIONAL: COUPON USAGE UPDATE API ⭐⭐⭐
+# (Call AFTER successful payment)
+# -------------------------------------------------------------------------
+
+@frappe.whitelist()
+def mark_coupon_used(coupon_code):
+    """
+    Increment coupon redemption count
+    
+    Args:
+        coupon_code (str): Coupon code
+    """
+
+    if frappe.session.user == "Guest":
+        frappe.throw(_("Login required."))
+
+    coupon_name = frappe.db.get_value(
+        "LMS Coupon",
+        {"code": coupon_code},
+        "name"
+    )
+
+    if not coupon_name:
+        frappe.throw(_("Invalid Coupon"))
+
+    frappe.db.sql("""
+        UPDATE `tabLMS Coupon`
+        SET redemption_count = redemption_count + 1
+        WHERE name = %s
+    """, coupon_name)
+
+    frappe.db.commit()
+
+    return {
+        "success": True,
+        "message": "Coupon usage updated"
+    }	
 
 # @frappe.whitelist(allow_guest=True)
 # def get_public_courses():

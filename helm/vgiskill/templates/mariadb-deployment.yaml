@@ -1,0 +1,46 @@
+{{- if .Values.mariadb.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vgiskill.fullname" . }}-mariadb
+  labels:
+    {{- include "vgiskill.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "vgiskill.fullname" . }}-mariadb
+  template:
+    metadata:
+      labels:
+        app: {{ include "vgiskill.fullname" . }}-mariadb
+        {{- include "vgiskill.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: mariadb
+          image: {{ .Values.mariadb.image }}
+          imagePullPolicy: {{ .Values.mariadb.imagePullPolicy }}
+          args:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+            - --skip-character-set-client-handshake
+            - --skip-innodb-read-only-compressed
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: {{ .Values.mariadb.rootPassword | quote }}
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: mariadb-data
+              mountPath: /var/lib/mysql
+          resources:
+            {{- toYaml .Values.mariadb.resources | nindent 12 }}
+      volumes:
+        - name: mariadb-data
+          {{- if .Values.mariadb.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "vgiskill.fullname" . }}-mariadb
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

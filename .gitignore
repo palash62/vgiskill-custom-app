@@ -3,6 +3,7 @@
 .env.local
 .env.*.local
 *.pem
+helm/vgiskill/values-secret.yaml
 
 # OS
 .DS_Store

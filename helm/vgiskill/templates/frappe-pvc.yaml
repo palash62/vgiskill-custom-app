@@ -1,0 +1,18 @@
+{{- if .Values.frappe.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vgiskill.fullname" . }}-frappe
+  labels:
+    {{- include "vgiskill.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.frappe.persistence.size | default "10Gi" }}
+  {{- if .Values.frappe.persistence.storageClassName }}
+  storageClassName: {{ .Values.frappe.persistence.storageClassName }}
+  {{- end }}
+{{- end }}
+
